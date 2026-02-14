@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subtitle JSON Player</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    /* Таймер (верхний левый) */
+    #hudLeft {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 16px;
+        opacity: 0.65;
+        user-select: none;
+        pointer-events: none;
+        white-space: nowrap;
+        z-index: 10;
+    }
+
+    #hudRight {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        user-select: none;
+        z-index: 10;
+    }
+
+    #controlsBar{
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+    button:hover { background: rgba(255,255,255,0.14); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* Субтитры по центру */
+    #subtitle {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 40px 60px;
+      text-align: center;
+      font-size: clamp(22px, 3.2vw, 48px);
+      line-height: 1.25;
+      white-space: pre-wrap; /* сохраняем \n как переносы */
+      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+
+    /* Небольшая подсказка снизу (можно удалить) */
+    #hint {
+      position: fixed;
+      left: 16px;
+      bottom: 12px;
+      opacity: 0.35;
+      font-size: 12px;
+      user-select: none;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #listOverlay{
+    position: fixed;
+    inset: 0;
+    z-index: 5;               /* ниже hudRight (который z-index:10), но выше субтитров */
+    background: rgba(0,0,0,0.86);
+    padding: 70px 16px 16px;  /* сверху оставляем место под верхние кнопки */
+    overflow: auto;
+    }
+
+    #listInner{
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    }
+
+    .subTileWrap{
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 10px;
+    align-items: center;
+    }
+
+    .subArrow{
+    opacity: 0.9;
+    font-size: 18px;
+    line-height: 1;
+    text-align: center;
+    user-select: none;
+    }
+
+    .subTile{
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    }
+
+    .subTile:hover{
+    background: rgba(255,255,255,0.10);
+    }
+
+    .subMeta{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    opacity: 0.7;
+    font-size: 13px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    }
+
+    .subText{
+    white-space: pre-wrap;
+    font-size: 16px;
+    line-height: 1.25;
+    }
+
+    .playMomentBtn{
+    margin-top: 10px;
+    width: fit-content;
+    }
+
+    .subTile.activeTile{
+    background: rgba(255,255,255,0.16);
+    border-color: rgba(255,255,255,0.35);
+    }
+  </style>
+</head>
+<body>
+  <div id="hudLeft">
+    <span id="time">00:00:00</span> <span id="offsetText">(offset: 0ms)</span> <span id="padText">(pad: 0ms)</span>
+  </div>
+
+  <div id="hudRight">
+    <div id="controlsBar">
+      <button id="playPause">Play</button>
+      <button class="offsetBtn" data-delta="-100">-100ms</button>
+      <button class="offsetBtn" data-delta="+100">+100ms</button>
+      <button class="padBtn" data-delta="-100">Pad -100ms</button>
+      <button class="padBtn" data-delta="+100">Pad +100ms</button>
+      <button id="resetAll" title="Сбросить все">Reset All</button>
+      <button id="btnList">List</button>
+    </div>
+    <button id="btnHide">Hide</button>
+  </div>
+
+  <div id="listOverlay" hidden>
+    <div id="listInner"></div>
+  </div>
+
+  <div id="subtitle"></div>
+  <div id="hint">Клавиши: Space - Play/Pause, ←/→ - offset ±100ms, Shift+←/→ - pad ±100ms</div>
+
+  <script>
+    /**
+     * ВСТАВЬ СЮДА JSON СУБТИТРОВ
+     * Формат массива:
+     * [{ line: 1, start: "00:00:45,593", end: "00:00:46,893", text: "..." }, ...]
+     */
+    const SUBTITLES_JSON = [
+      {"line":1,"start":"00:00:45,593","end":"00:00:46,893","text":"Давай, брат."},{"line":2,"start":"00:01:08,981","end":"00:01:11,861","text":"- Эй, эй.\n- Эй, осторожно."},{"line":3,"start":"00:01:12,101","end":"00:01:15,061","text":"- Ты мешаешь мне, брат.\n- Ладно."},{"line":4,"start":"00:01:31,601","end":"00:01:34,081","text":"- Это все, на что ты способен?\n- Хочешь ехать быстрее, да?"},{"line":5,"start":"00:01:51,041","end":"00:01:52,949","text":"Это круто, брат."},{"line":6,"start":"00:01:52,973","end":"00:01:55,167","text":"Сксанг.\nОтпусти"},{"line":7,"start":"00:01:57,883","end":"00:01:59,501","text":"Круто с тобой кататься, брат."},{"line":8,"start":"00:01:59,525","end":"00:02:00,531","text":"Дай четыре!"},{"line":9,"start":"00:02:08,711","end":"00:02:10,209","text":"Ладно. Мне пора, брат."},{"line":10,"start":"00:02:11,233","end":"00:02:12,611","text":"Младший брат,"},{"line":11,"start":"00:02:13,191","end":"00:02:14,711","text":"Скажи мне одну вещь, прежде чем уйти."},{"line":12,"start":"00:02:17,671","end":"00:02:18,731","text":"Как я умер?"},{"line":13,"start":"00:02:25,761","end":"00:02:26,809","text":"Тебя застрелили."},{"line":14,"start":"00:02:28,433","end":"00:02:31,084","text":"Мы могли бы сбежать.\nНо я заставил нас вернуться за Спайдер."},{"line":15,"start":"00:02:31,408","end":"00:02:33,341","text":"Тогда нам пришлось вернуться."},{"line":16,"start":"00:02:34,081","end":"00:02:36,126","text":"Это не твоя вина.\n- Скажи это папе."},{"line":17,"start":"00:02:36,550","end":"00:02:39,001","text":"Нас вообще не должно было там быть."},{"line":18,"start":"00:02:40,325","end":"00:02:43,584","text":"Я подставил нас, потому что\nя не выполнил приказ."},{"line":19,"start":"00:02:43,608","end":"00:02:44,961","text":"Это только ты. Малыш."},{"line":20,"start":"00:02:55,691","end":"00:02:58,331","text":"- Я люблю тебя, брат.\n- Сксанг."},{"line":21,"start":"00:03:04,411","end":"00:03:05,626","text":"Я убил своего брата."},{"line":22,"start":"00:03:06,850","end":"00:03:08,211","text":"Что бы ни случилось,"},{"line":23,"start":"00:03:08,311","end":"00:03:11,851","text":"я должен жить с этим\nдо конца своих дней."},{"line":24,"start":"00:03:50,811","end":"00:03:54,010","text":"- Хотел бы я это сделать.\n- Хотел бы я это сделать!"},{"line":25,"start":"00:03:55,710","end":"00:03:59,271","text":"Если у меня снова случится глупый приступ под водой."},{"line":26,"start":"00:03:59,451","end":"00:04:01,611","text":"Да. Ты будешь мной без маски."},{"line":27,"start":"00:04:04,731","end":"00:04:06,834","text":"Давай проверим.\nПосмотрим, что будет."},{"line":28,"start":"00:04:06,858","end":"00:04:08,834","text":"Эй, следи за швами.\nОсторожно, швы!"},{"line":29,"start":"00:04:09,958","end":"00:04:12,421","text":"Как тебе это, а?"},{"line":30,"start":"00:04:35,381","end":"00:04:38,421","text":"Огонь ненависти оставляет только\nпепел скорби."},{"line":31,"start":"00:04:40,581","end":"00:04:43,459","text":"Моя мать скорбела по-старинке"},{"line":32,"start":"00:04:43,483","end":"00:04:45,941","text":"воспевая жизнь своего сына\nво время ежедневного затмения."},{"line":33,"start":"00:04:48,021","end":"00:04:49,861","text":"Потому что свет всегда возвращается."},{"line":34,"start":"00:04:59,381","end":"00:05:00,584","text":"Есть путь На'Ви."},{"line":35,"start":"00:05:01,008","end":"00:05:06,371","text":"А есть еще способ моего отца.\nНичего не говори. Будь занят."},{"line":36,"start":"00:05:24,771","end":"00:05:27,551","text":"Люди с рифа говорят,\nморе омывает тебя."},{"line":37,"start":"00:05:28,671","end":"00:05:29,951","text":"Смывает твои грехи."},{"line":38,"start":"00:06:07,401","end":"00:06:10,584","text":"Что у тебя есть?"},{"line":39,"start":"00:06:10,608","end":"00:06:13,001","text":"Ты должен собирать оружие.\nЭта штука бесполезна."},{"line":40,"start":"00:06:13,625","end":"00:06:15,121","text":"Сосредоточься, парень."},{"line":41,"start":"00:06:20,431","end":"00:06:21,671","text":"Не показывай это своей матери."},{"line":42,"start":"00:06:32,211","end":"00:06:34,131","text":"Извините. Тук..."}
+    ];
+
+    // --- helpers ---
+    function parseSrtTimeToMs(s) {
+      // "HH:MM:SS,mmm"
+      const m = /^([0-9]{2}):([0-9]{2}):([0-9]{2}),([0-9]{3})$/.exec(String(s).trim());
+      if (!m) return NaN;
+      const hh = Number(m[1]);
+      const mm = Number(m[2]);
+      const ss = Number(m[3]);
+      const ms = Number(m[4]);
+      return (((hh * 60 + mm) * 60) + ss) * 1000 + ms;
+    }
+
+    function formatHMS(ms) {
+      // только ЧЧ:ММ:СС
+      ms = Math.max(0, Math.floor(ms));
+      const totalSec = Math.floor(ms / 1000);
+      const hh = Math.floor(totalSec / 3600);
+      const rem = totalSec % 3600;
+      const mm = Math.floor(rem / 60);
+      const ss = rem % 60;
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+    }
+
+    function formatMsToSrtLike(ms){
+      // HH:MM:SS,mmm
+      ms = Math.max(0, Math.floor(ms));
+      const hh = Math.floor(ms / 3600000);
+      const rem1 = ms % 3600000;
+      const mm = Math.floor(rem1 / 60000);
+      const rem2 = rem1 % 60000;
+      const ss = Math.floor(rem2 / 1000);
+      const mmm = rem2 % 1000;
+      const pad2 = (n) => String(n).padStart(2, "0");
+      const pad3 = (n) => String(n).padStart(3, "0");
+      return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)},${pad3(mmm)}`;
+    }
+
+    // --- prepare subtitles ---
+    const subs = SUBTITLES_JSON
+      .map((x) => ({
+        ...x,
+        startMs: parseSrtTimeToMs(x.start),
+        endMs: parseSrtTimeToMs(x.end),
+      }))
+      .filter((x) => Number.isFinite(x.startMs) && Number.isFinite(x.endMs))
+      .sort((a, b) => a.startMs - b.startMs);
+
+    const firstStartMs = subs.length ? subs[0].startMs : 0;
+
+    // --- elements ---
+    const elTime = document.getElementById("time");
+    const elOffset = document.getElementById("offsetText");
+    const elPad = document.getElementById("padText");
+    const elSubtitle = document.getElementById("subtitle");
+
+    const controlsBar = document.getElementById("controlsBar");
+    const btnPlayPause = document.getElementById("playPause");
+    const btnResetAll = document.getElementById("resetAll");
+    const offsetBtns = document.querySelectorAll(".offsetBtn");
+    const padBtns = document.querySelectorAll(".padBtn");
+    const btnHide = document.getElementById("btnHide");
+    const btnList = document.getElementById("btnList");
+
+    const listOverlay = document.getElementById("listOverlay");
+    const listInner = document.getElementById("listInner");
+
+    // --- storage ---
+    const STORAGE_KEY = "subtitle_json_player_state_v2";
+
+    function saveState() {
+      const state = {
+        offsetMs,
+        baseTimeMs,
+        isPlaying,
+        hasStartedOnce,
+        controlsHidden,
+        listOpen,
+        openTileIndex,
+        lastShownIndex,
+        padMs,
+        startEpochMs: isPlaying ? startEpochMs : null,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("subtitle_json_player_state_v1");
+      if (!raw) return;
+
+      try {
+        const s = JSON.parse(raw);
+
+        offsetMs = Number.isFinite(s.offsetMs) ? s.offsetMs : 0;
+        padMs = Number.isFinite(s.padMs) ? s.padMs : 0;
+        baseTimeMs = Number.isFinite(s.baseTimeMs) ? s.baseTimeMs : 0;
+        hasStartedOnce = !!s.hasStartedOnce;
+        controlsHidden = !!s.controlsHidden;
+
+        listOpen = !!s.listOpen;
+        openTileIndex = Number.isFinite(s.openTileIndex) ? s.openTileIndex : null;
+
+        if (Number.isFinite(s.lastShownIndex)) lastShownIndex = s.lastShownIndex;
+        else if (Number.isFinite(s.lastActiveIndex)) lastShownIndex = s.lastActiveIndex;
+        else lastShownIndex = -1;
+
+        if (s.isPlaying && Number.isFinite(s.startEpochMs)) {
+          isPlaying = true;
+          startEpochMs = s.startEpochMs;
+        } else {
+          isPlaying = false;
+          startEpochMs = null;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // --- state ---
+    let isPlaying = false;
+    let rafId = null;
+
+    let controlsHidden = false;
+
+    // list state
+    let listOpen = false;
+    let openTileIndex = null;
+    let prevOpenTileIndex = null;
+
+    // offset in ms
+    let offsetMs = 0;
+
+    // pad in ms: расширяет окно показа реплики в пустых зазорах (без нахлёста)
+    let padMs = 0;
+
+    // virtual playback time
+    let startEpochMs = null;
+    let baseTimeMs = 0;
+    let hasStartedOnce = false;
+
+    // idx текущей отображаемой строки (-1 в паузах)
+    let currentActiveIndex = -1;
+
+    // idx последней показанной строки (подсветка списка)
+    let lastShownIndex = -1;
+
+    // --- offset helpers ---
+    function setOffset(delta) {
+      offsetMs += delta;
+      elOffset.textContent = `(offset: ${offsetMs}ms)`;
+    elPad.textContent = `(pad: ${padMs}ms)`;
+      elPad.textContent = `(pad: ${padMs}ms)`;
+    }
+
+    function setPad(delta){
+      padMs = Math.max(0, padMs + delta);
+      elPad.textContent = `(pad: ${padMs}ms)`;
+    }
+
+
+    function resetAll() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      isPlaying = false;
+      hasStartedOnce = false;
+      startEpochMs = null;
+      baseTimeMs = 0;
+
+      offsetMs = 0;
+      padMs = 0;
+      currentActiveIndex = -1;
+      lastShownIndex = -1;
+
+      btnPlayPause.textContent = "Play";
+      elOffset.textContent = `(offset: ${offsetMs}ms)`;
+      elTime.textContent = formatHMS(0);
+      elSubtitle.textContent = "";
+
+      if (listOpen) updateListHighlight(true);
+
+      saveState();
+    }
+
+    // --- time helpers ---
+    function getCurrentTimeMs() {
+      if (!isPlaying) return baseTimeMs;
+      return Date.now() - startEpochMs;
+    }
+
+    // --- list DOM cache ---
+    let listBuilt = false;
+    const listArrowEls = [];
+    const listTileEls = [];
+    const listPlayBtnEls = [];
+
+    function buildListOnce(){
+      if (listBuilt) return;
+      listBuilt = true;
+
+      listInner.innerHTML = "";
+      listArrowEls.length = 0;
+      listTileEls.length = 0;
+      listPlayBtnEls.length = 0;
+
+      for (let i = 0; i < subs.length; i++){
+        const wrap = document.createElement("div");
+        wrap.className = "subTileWrap";
+
+        const arrow = document.createElement("div");
+        arrow.className = "subArrow";
+        arrow.textContent = "";
+        wrap.appendChild(arrow);
+
+        const tile = document.createElement("div");
+        tile.className = "subTile";
+
+        const meta = document.createElement("div");
+        meta.className = "subMeta";
+        meta.textContent = `${formatHMS(subs[i].startMs)} (${formatMsToSrtLike(subs[i].startMs)})`;
+        tile.appendChild(meta);
+
+        const text = document.createElement("div");
+        text.className = "subText";
+        text.textContent = subs[i].text;
+        tile.appendChild(text);
+
+        const btn = document.createElement("button");
+        btn.className = "playMomentBtn";
+        btn.textContent = "Play This Moment";
+        btn.hidden = true;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          playFromSubtitleIndex(i);
+        });
+        tile.appendChild(btn);
+
+        tile.addEventListener("click", () => {
+          prevOpenTileIndex = openTileIndex;
+          openTileIndex = (openTileIndex === i) ? null : i;
+          updateListExpanded();
+          saveState();
+        });
+
+        wrap.appendChild(tile);
+        listInner.appendChild(wrap);
+
+        listArrowEls[i] = arrow;
+        listTileEls[i] = tile;
+        listPlayBtnEls[i] = btn;
+      }
+
+      updateListExpanded();
+    }
+
+    function updateListExpanded(){
+      const indices = new Set([prevOpenTileIndex, openTileIndex]);
+      indices.forEach((idx) => {
+        if (idx === null || idx === undefined) return;
+        if (!listPlayBtnEls[idx]) return;
+        listPlayBtnEls[idx].hidden = (openTileIndex !== idx);
+      });
+    }
+
+    function scrollToIndex(i, behavior){
+      if (!listOpen) return;
+      if (!Number.isFinite(i) || i < 0) return;
+      const el = listTileEls[i];
+      if (!el) return;
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: behavior || "auto" });
+    }
+
+    let lastHighlightedIndex = -2;
+    function updateListHighlight(forceScroll){
+      if (!listOpen) return;
+      buildListOnce();
+
+      const hi = lastShownIndex;
+      if (hi === lastHighlightedIndex && !forceScroll) return;
+
+      if (Number.isFinite(lastHighlightedIndex) && lastHighlightedIndex >= 0){
+        listArrowEls[lastHighlightedIndex].textContent = "";
+        listTileEls[lastHighlightedIndex].classList.remove("activeTile");
+      }
+
+      if (Number.isFinite(hi) && hi >= 0){
+        listArrowEls[hi].textContent = "➜";
+        listTileEls[hi].classList.add("activeTile");
+
+        // Прокрутка только если явно передан forceScroll = true
+        if (forceScroll) {
+          scrollToIndex(hi, "smooth");
+        }
+      }
+
+      lastHighlightedIndex = hi;
+    }
+
+    // --- render loop ---
+    function renderFrame() {
+      const t = getCurrentTimeMs();
+
+      elTime.textContent = formatHMS(t);
+
+      const tForSubs = t + offsetMs;
+
+      let idx = -1;
+      for (let i = 0; i < subs.length; i++) {
+        // расширяем окно показа фразы: раньше и дольше,
+        // но только внутри "пустых" зазоров между фразами (без нахлёста)
+        const prevEnd = (i > 0) ? subs[i-1].endMs : -Infinity;
+        const nextStart = (i < subs.length - 1) ? subs[i+1].startMs : Infinity;
+
+        const effStart = Math.max(subs[i].startMs - padMs, prevEnd);
+        const effEnd   = Math.min(subs[i].endMs + padMs, nextStart);
+
+        if (tForSubs >= effStart && tForSubs < effEnd) {
+          idx = i;
+          break;
+        }
+      }
+
+      if (idx !== currentActiveIndex) {
+        currentActiveIndex = idx;
+        elSubtitle.textContent = (idx === -1) ? "" : subs[idx].text;
+
+        if (idx !== -1) {
+          lastShownIndex = idx;
+          saveState();
+          if (listOpen) updateListHighlight(false);
+        }
+      }
+
+      if (isPlaying) rafId = requestAnimationFrame(renderFrame);
+    }
+
+    // --- controls ---
+    function play() {
+      if (isPlaying) return;
+
+      if (!hasStartedOnce) {
+        hasStartedOnce = true;
+        baseTimeMs = firstStartMs;
+      }
+
+      startEpochMs = Date.now() - baseTimeMs;
+
+      isPlaying = true;
+      btnPlayPause.textContent = "Pause";
+
+      saveState();
+
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(renderFrame);
+    }
+
+    function pause() {
+      if (!isPlaying) return;
+
+      baseTimeMs = Date.now() - startEpochMs;
+
+      isPlaying = false;
+      startEpochMs = null;
+      btnPlayPause.textContent = "Play";
+
+      saveState();
+
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      renderFrame();
+    }
+
+    function togglePlayPause() {
+      isPlaying ? pause() : play();
+    }
+
+    function toggleControls() {
+      controlsHidden = !controlsHidden;
+
+      if (controlsHidden) {
+        controlsBar.style.display = "none";
+        btnHide.textContent = "Show";
+      } else {
+        controlsBar.style.display = "flex";
+        btnHide.textContent = "Hide";
+      }
+
+      saveState();
+    }
+
+    function openList(){
+      listOpen = true;
+      listOverlay.hidden = false;
+      buildListOnce();
+      updateListHighlight(true);
+      saveState();
+    }
+
+    function closeList(){
+      listOpen = false;
+      openTileIndex = null;
+      prevOpenTileIndex = null;
+      listOverlay.hidden = true;
+      saveState();
+    }
+
+    function toggleList(){
+      listOpen ? closeList() : openList();
+    }
+
+    function playFromSubtitleIndex(i){
+      if (!subs[i]) return;
+
+      baseTimeMs = subs[i].startMs;
+      hasStartedOnce = true;
+      startEpochMs = Date.now() - baseTimeMs;
+
+      isPlaying = true;
+      btnPlayPause.textContent = "Pause";
+
+      lastShownIndex = i;
+
+      saveState();
+
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(renderFrame);
+
+      if (listOpen) updateListHighlight(false);
+    }
+
+    // --- events ---
+    btnPlayPause.addEventListener("click", togglePlayPause);
+
+    offsetBtns.forEach((b) => {
+      b.addEventListener("click", () => {
+        const delta = Number(b.dataset.delta);
+        if (Number.isFinite(delta)) {
+          setOffset(delta);
+          saveState();
+          if (!isPlaying) renderFrame();
+        }
+      });
+    });
+
+    padBtns.forEach((b) => {
+      b.addEventListener("click", () => {
+        const delta = Number(b.dataset.delta);
+        if (Number.isFinite(delta)) {
+          setPad(delta);
+          saveState();
+          if (!isPlaying) renderFrame();
+        }
+      });
+    });
+
+    btnResetAll.addEventListener("click", () => {
+      resetAll();
+    });
+
+    btnHide.addEventListener("click", toggleControls);
+    btnList.addEventListener("click", toggleList);
+
+    listOverlay.addEventListener("click", (e) => {
+      if (e.target === listOverlay) closeList();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && listOpen){
+        e.preventDefault();
+        closeList();
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        togglePlayPause();
+        return;
+      }
+      if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setPad(-100);
+        } else {
+          setOffset(-100);
+        }
+        saveState();
+        if (!isPlaying) renderFrame();
+        return;
+      }
+      if (e.code === "ArrowRight") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setPad(+100);
+        } else {
+          setOffset(+100);
+        }
+        saveState();
+        if (!isPlaying) renderFrame();
+        return;
+      }
+    });
+
+    // --- init ---
+    loadState();
+
+    elOffset.textContent = `(offset: ${offsetMs}ms)`;
+    btnPlayPause.textContent = isPlaying ? "Pause" : "Play";
+
+    if (controlsHidden) {
+      controlsBar.style.display = "none";
+      btnHide.textContent = "Show";
+    }
+
+    if (listOpen) {
+      listOverlay.hidden = false;
+      buildListOnce();
+      updateListHighlight(true);
+    } else {
+      listOverlay.hidden = true;
+    }
+
+    renderFrame();
+
+    if (isPlaying) {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(renderFrame);
+    }
+  </script>
+
+</body>
+</html>
