@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Калькулятор рабочего времени</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel-2: #1e232d;
+      --text: #f3f5f7;
+      --muted: #98a2b3;
+      --accent: #6ea8fe;
+      --accent-2: #3b82f6;
+      --border: #2b3240;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+	html, body {
+	  margin: 0;
+	  padding: 0;
+	  min-height: 100%;
+	  background: linear-gradient(180deg, #0c0f14 0%, #11151c 100%);
+	  color: var(--text);
+	  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	}
+
+    body {
+      padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) 16px;
+      display: flex;
+      justify-content: center;
+	  min-height: 100dvh;
+    }
+	
+    .wrap {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .card {
+      background: rgba(23, 26, 33, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    h1 {
+      font-size: 1.45rem;
+      line-height: 1.15;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .sub {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 0.96rem;
+      line-height: 1.4;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.92rem;
+      color: #d7dce4;
+      font-weight: 600;
+    }
+
+    .input {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 1.15rem;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease, transform .05s ease;
+    }
+
+    .input::placeholder {
+      color: rgba(152, 162, 179, 0.78);
+    }
+
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(110, 168, 254, 0.14);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 56px 75px 56px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      min-height: 54px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #1d2430 0%, #161c25 100%);
+      color: var(--text);
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .result {
+      margin-top: 18px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .resultBox {
+      background: linear-gradient(180deg, rgba(59,130,246,0.10), rgba(59,130,246,0.04));
+      border: 1px solid rgba(110,168,254,.2);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .resultLabel {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 6px;
+    }
+
+    .resultValue {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .error {
+      min-height: 22px;
+      color: #ff9090;
+      font-size: 0.9rem;
+      padding-left: 2px;
+    }
+
+    .hint {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .liveTag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #bdd5ff;
+      background: rgba(59,130,246,.12);
+      border: 1px solid rgba(59,130,246,.22);
+      border-radius: 999px;
+      padding: 6px 10px;
+      margin-top: 4px;
+      width: fit-content;
+    }
+
+    .inputWrap {
+	  position: relative;
+	}
+
+	.liveInline {
+	  position: absolute;
+	  right: 14px;
+	  top: 50%;
+	  transform: translateY(-50%);
+
+	  display: flex;
+	  align-items: center;
+	  gap: 6px;
+
+	  font-size: 0.82rem;
+	  color: #9db9ff;
+
+	  pointer-events: none;
+	}
+
+	.liveDot {
+	  width: 8px;
+	  height: 8px;
+	  border-radius: 50%;
+	  background: #22c55e;
+	  box-shadow: 0 0 8px rgba(34,197,94,.7);
+	}
+	
+	.rateWrap {
+	  position: relative;
+	}
+
+	.currency {
+	  position: absolute;
+	  right: 14px;
+	  top: 48%;
+	  transform: translateY(-50%);
+	  color: #98a2b3;
+	  font-size: 1.1rem;
+	  pointer-events: none;
+	}
+
+	.rateWrap input {
+	  padding-right: 32px;
+	}
+
+    @media (min-width: 520px) {
+      .grid.two {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Калькулятор рабочего времени</h1>
+      <p class="sub">Введите начало и окончание работы в формате ЧЧ:ММ. Если время окончания пустое, будет использоваться текущее время и результат станет пересчитываться автоматически.</p>
+
+      <div class="grid two">
+        <div class="field">
+          <label for="start">Время начала</label>
+          <input
+            id="start"
+            class="input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="00:00"
+            maxlength="5"
+            aria-label="Время начала"
+          />
+        </div>
+
+        <div class="field">
+		  <label for="end">Время окончания</label>
+
+		  <div class="inputWrap">
+			<input
+			  id="end"
+			  class="input"
+			  type="text"
+			  inputmode="numeric"
+			  autocomplete="off"
+			  placeholder=""
+			  maxlength="5"
+			/>
+
+			<div id="liveTag" class="liveInline">
+			  <span class="liveDot"></span>
+			  Текущее время
+			</div>
+
+		  </div>
+		</div>
+      </div>
+
+      <div class="field" style="margin-top:14px;">
+        <label for="rate">Стоимость часа</label>
+        <div class="row">
+          <button class="btn" id="minusBtn" type="button" aria-label="Уменьшить стоимость часа">−</button>
+          <div class="rateWrap">
+			<input
+			  id="rate"
+			  class="input"
+			  type="text"
+			  inputmode="decimal"
+			  autocomplete="off"
+			  value="20"
+			/>
+			<span class="currency">€</span>
+		  </div>
+          <button class="btn" id="plusBtn" type="button" aria-label="Увеличить стоимость часа">+</button>
+        </div>
+      </div>
+
+      <div class="result">
+        <div class="resultBox">
+          <div class="resultLabel">Отработанное время</div>
+          <div id="durationText" class="resultValue">—</div>
+        </div>
+
+        <div class="resultBox">
+          <div class="resultLabel">Итоговая сумма</div>
+          <div id="amountText" class="resultValue">—</div>
+        </div>
+
+        <div id="error" class="error"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    const startInput = document.getElementById('start');
+    const endInput = document.getElementById('end');
+    const rateInput = document.getElementById('rate');
+    const durationText = document.getElementById('durationText');
+    const amountText = document.getElementById('amountText');
+    const errorText = document.getElementById('error');
+    const liveTag = document.getElementById('liveTag');
+    const minusBtn = document.getElementById('minusBtn');
+    const plusBtn = document.getElementById('plusBtn');
+
+    function nowHHMM() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+
+    function normalizeTimeInput(value) {
+      const digits = value.replace(/\D/g, '').slice(0, 4);
+
+      if (digits.length <= 2) return digits;
+      return digits.slice(0, 2) + ':' + digits.slice(2);
+    }
+
+    function parseTime(value) {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+      if (!match) return null;
+
+      const hh = Number(match[1]);
+      const mm = Number(match[2]);
+
+      if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+
+      return hh * 60 + mm;
+    }
+
+    function formatDuration(totalMinutes) {
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+
+      const hWord = h === 1 ? 'час' : (h >= 2 && h <= 4 ? 'часа' : 'час');
+      const mWord = (m % 10 === 1 && m % 100 !== 11) ? 'мин' : 'мин';
+
+      return `${h} ${hWord} ${m} ${mWord}`;
+    }
+
+    function formatMoney(value) {
+      const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
+      return `${rounded.toFixed(2)}€`;
+    }
+
+    function parseRate(value) {
+      const cleaned = value.replace(',', '.').replace(/[^\d.]/g, '');
+      if (!cleaned) return null;
+      const num = Number(cleaned);
+      return Number.isFinite(num) && num >= 0 ? num : null;
+    }
+
+    function updateEndPlaceholder() {
+      if (!endInput.value.trim()) {
+        endInput.placeholder = nowHHMM();
+      }
+    }
+
+    function recalc() {
+      errorText.textContent = '';
+      updateEndPlaceholder();
+
+      const startValue = startInput.value.trim();
+      const endValue = endInput.value.trim();
+      const rateValue = parseRate(rateInput.value);
+
+      liveTag.style.display = endValue ? 'none' : 'flex';
+
+      if (!startValue) {
+        durationText.textContent = '—';
+        amountText.textContent = '—';
+        return;
+      }
+
+      const startMinutes = parseTime(startValue);
+      if (startMinutes === null) {
+        durationText.textContent = '—';
+        amountText.textContent = '—';
+        errorText.textContent = 'Проверьте время начала. Нужен формат ЧЧ:ММ.';
+        return;
+      }
+
+      const effectiveEnd = endValue || nowHHMM();
+      const endMinutes = parseTime(effectiveEnd);
+
+      if (endMinutes === null) {
+        durationText.textContent = '—';
+        amountText.textContent = '—';
+        errorText.textContent = 'Проверьте время окончания. Нужен формат ЧЧ:ММ.';
+        return;
+      }
+
+      if (rateValue === null) {
+        durationText.textContent = '—';
+        amountText.textContent = '—';
+        errorText.textContent = 'Проверьте стоимость часа.';
+        return;
+      }
+
+      let diff = endMinutes - startMinutes;
+      if (diff < 0) diff += 24 * 60;
+
+      const amount = (diff / 60) * rateValue;
+
+      durationText.textContent = formatDuration(diff);
+      amountText.textContent = formatMoney(amount);
+    }
+
+    function attachTimeFormatter(input) {
+      input.addEventListener('input', () => {
+        const normalized = normalizeTimeInput(input.value);
+        if (input.value !== normalized) input.value = normalized;
+        recalc();
+      });
+
+      input.addEventListener('blur', () => {
+        const value = input.value.trim();
+        if (!value) {
+          recalc();
+          return;
+        }
+        const parts = value.split(':');
+        if (parts.length === 2 && parts[0].length === 1) {
+          input.value = '0' + parts[0] + ':' + parts[1];
+        }
+        recalc();
+      });
+    }
+
+    attachTimeFormatter(startInput);
+    attachTimeFormatter(endInput);
+
+    rateInput.addEventListener('input', () => {
+      rateInput.value = rateInput.value.replace(',', '.').replace(/[^\d.]/g, '');
+      recalc();
+    });
+
+    minusBtn.addEventListener('click', () => {
+      const current = parseRate(rateInput.value) ?? 20;
+      const next = Math.max(0, Math.round((current - 1) * 100) / 100);
+      rateInput.value = String(next).replace(/\.00$/, '');
+      recalc();
+    });
+
+    plusBtn.addEventListener('click', () => {
+      const current = parseRate(rateInput.value) ?? 20;
+      const next = Math.round((current + 1) * 100) / 100;
+      rateInput.value = String(next).replace(/\.00$/, '');
+      recalc();
+    });
+
+    setInterval(() => {
+      if (!endInput.value.trim()) {
+        recalc();
+      } else {
+        updateEndPlaceholder();
+      }
+    }, 1000);
+
+    updateEndPlaceholder();
+    recalc();
+  </script>
+</body>
+</html>
