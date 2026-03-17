@@ -24,25 +24,29 @@
 
 	html, body {
 	  margin: 0;
-	  padding: 0;
-	  min-height: 100%;
+	  width: 100%;
+	  height: 100%;
+	  overflow: hidden;
+	  background: #0c0f14;
+	}
+
+	body {
+	  position: fixed;
+	  inset: 0;
 	  background: linear-gradient(180deg, #0c0f14 0%, #11151c 100%);
 	  color: var(--text);
 	  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	  padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) 16px;
+	  display: flex;
+	  justify-content: center;
 	}
 
-    body {
-      padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) 16px;
-      display: flex;
-      justify-content: center;
-	  min-height: 100dvh;
-    }
+	.wrap {
+	  width: 100%;
+	  max-width: 560px;
+	  overflow: hidden;
+	}
 	
-    .wrap {
-      width: 100%;
-      max-width: 560px;
-    }
-
     .card {
       background: rgba(23, 26, 33, 0.92);
       backdrop-filter: blur(10px);
@@ -50,6 +54,9 @@
       border-radius: 24px;
       box-shadow: var(--shadow);
       padding: 18px;
+	  height: 100%;
+	  overflow: auto;
+	  -webkit-overflow-scrolling: touch;
     }
 
     h1 {
