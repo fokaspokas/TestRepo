@@ -6,47 +6,44 @@
   <title>Калькулятор рабочего времени</title>
   <style>
     :root {
-      --bg: #0f1115;
       --panel: #171a21;
       --panel-2: #1e232d;
       --text: #f3f5f7;
       --muted: #98a2b3;
+      --muted-2: rgba(152, 162, 179, 0.52);
       --accent: #6ea8fe;
-      --accent-2: #3b82f6;
       --border: #2b3240;
-      --danger: #ef4444;
       --success: #22c55e;
       --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --radius: 18px;
     }
 
     * { box-sizing: border-box; }
 
-	html, body {
-	  margin: 0;
-	  width: 100%;
-	  height: 100%;
-	  overflow: hidden;
-	  background: #0c0f14;
-	}
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0c0f14;
+    }
 
-	body {
-	  position: fixed;
-	  inset: 0;
-	  background: linear-gradient(180deg, #0c0f14 0%, #11151c 100%);
-	  color: var(--text);
-	  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-	  padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) 16px;
-	  display: flex;
-	  justify-content: center;
-	}
+    body {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, #0c0f14 0%, #11151c 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) 16px;
+      display: flex;
+      justify-content: center;
+    }
 
-	.wrap {
-	  width: 100%;
-	  max-width: 560px;
-	  overflow: hidden;
-	}
-	
+    .wrap {
+      width: 100%;
+      max-width: 560px;
+      overflow: hidden;
+    }
+
     .card {
       background: rgba(23, 26, 33, 0.92);
       backdrop-filter: blur(10px);
@@ -54,9 +51,9 @@
       border-radius: 24px;
       box-shadow: var(--shadow);
       padding: 18px;
-	  height: 100%;
-	  overflow: auto;
-	  -webkit-overflow-scrolling: touch;
+      height: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     h1 {
@@ -90,21 +87,23 @@
       font-weight: 600;
     }
 
+    .inputShell {
+      position: relative;
+    }
+
     .input {
       width: 100%;
       min-height: 54px;
       border: 1px solid var(--border);
       background: var(--panel-2);
       color: var(--text);
+      caret-color: var(--text);
       border-radius: 16px;
-      padding: 14px 16px;
+      padding: 14px 52px 14px 16px;
       font-size: 1.15rem;
       outline: none;
-      transition: border-color .15s ease, box-shadow .15s ease, transform .05s ease;
-    }
-
-    .input::placeholder {
-      color: rgba(152, 162, 179, 0.78);
+      transition: border-color .15s ease, box-shadow .15s ease;
+      letter-spacing: 0.01em;
     }
 
     .input:focus {
@@ -112,9 +111,45 @@
       box-shadow: 0 0 0 4px rgba(110, 168, 254, 0.14);
     }
 
+    .ghost {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.15rem;
+      color: var(--muted-2);
+      pointer-events: none;
+      user-select: none;
+      white-space: pre;
+      letter-spacing: 0.01em;
+    }
+
+    .clearBtn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 999px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.08);
+      color: rgba(243,245,247,0.82);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      z-index: 2;
+    }
+
+    .clearBtn.visible { display: flex; }
+
     .row {
       display: grid;
-      grid-template-columns: 56px 75px 56px;
+      grid-template-columns: 56px 110px 56px;
       gap: 10px;
       align-items: center;
     }
@@ -130,10 +165,6 @@
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
-    }
-
-    .btn:active {
-      transform: scale(0.98);
     }
 
     .result {
@@ -170,77 +201,68 @@
       padding-left: 2px;
     }
 
-    .hint {
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 0.88rem;
-      line-height: 1.45;
-    }
-
-    .liveTag {
-      display: inline-flex;
+    .liveInline {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
       align-items: center;
       gap: 6px;
-      font-size: 0.8rem;
-      color: #bdd5ff;
-      background: rgba(59,130,246,.12);
-      border: 1px solid rgba(59,130,246,.22);
-      border-radius: 999px;
-      padding: 6px 10px;
-      margin-top: 4px;
-      width: fit-content;
+      font-size: 0.82rem;
+      color: var(--muted-2);
+      pointer-events: none;
     }
 
-    .inputWrap {
-	  position: relative;
-	}
+    .liveDot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px rgba(34,197,94,.7);
+    }
 
-	.liveInline {
-	  position: absolute;
-	  right: 14px;
-	  top: 50%;
-	  transform: translateY(-50%);
+    .rateWrap { position: relative; }
 
-	  display: flex;
-	  align-items: center;
-	  gap: 6px;
+    .rateInput {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 14px 32px 14px 16px;
+      font-size: 1.15rem;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
 
-	  font-size: 0.82rem;
-	  color: #9db9ff;
+    .rateInput:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(110, 168, 254, 0.14);
+    }
 
-	  pointer-events: none;
-	}
+    .currency {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #98a2b3;
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
 
-	.liveDot {
-	  width: 8px;
-	  height: 8px;
-	  border-radius: 50%;
-	  background: #22c55e;
-	  box-shadow: 0 0 8px rgba(34,197,94,.7);
-	}
-	
-	.rateWrap {
-	  position: relative;
-	}
-
-	.currency {
-	  position: absolute;
-	  right: 14px;
-	  top: 48%;
-	  transform: translateY(-50%);
-	  color: #98a2b3;
-	  font-size: 1.1rem;
-	  pointer-events: none;
-	}
-
-	.rateWrap input {
-	  padding-right: 32px;
-	}
+    .measure {
+      position: absolute;
+      visibility: hidden;
+      white-space: pre;
+      font-size: 1.15rem;
+      letter-spacing: 0.01em;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
 
     @media (min-width: 520px) {
-      .grid.two {
-        grid-template-columns: 1fr 1fr;
-      }
+      .grid.two { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -253,39 +275,22 @@
       <div class="grid two">
         <div class="field">
           <label for="start">Время начала</label>
-          <input
-            id="start"
-            class="input"
-            type="text"
-            inputmode="numeric"
-            autocomplete="off"
-            placeholder="00:00"
-            maxlength="5"
-            aria-label="Время начала"
-          />
+          <div class="inputShell">
+            <input id="start" class="input" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="next" aria-label="Время начала" maxlength="5" />
+            <div id="startGhost" class="ghost" aria-hidden="true"></div>
+            <button id="startClear" class="clearBtn" type="button" aria-label="Очистить время начала">×</button>
+          </div>
         </div>
 
         <div class="field">
-		  <label for="end">Время окончания</label>
-
-		  <div class="inputWrap">
-			<input
-			  id="end"
-			  class="input"
-			  type="text"
-			  inputmode="numeric"
-			  autocomplete="off"
-			  placeholder=""
-			  maxlength="5"
-			/>
-
-			<div id="liveTag" class="liveInline">
-			  <span class="liveDot"></span>
-			  Текущее время
-			</div>
-
-		  </div>
-		</div>
+          <label for="end">Время окончания</label>
+          <div class="inputShell">
+            <input id="end" class="input" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" aria-label="Время окончания" maxlength="5" />
+            <div id="endGhost" class="ghost" aria-hidden="true"></div>
+            <button id="endClear" class="clearBtn" type="button" aria-label="Очистить время окончания">×</button>
+            <div id="liveTag" class="liveInline"><span class="liveDot"></span>Текущее время</div>
+          </div>
+        </div>
       </div>
 
       <div class="field" style="margin-top:14px;">
@@ -293,16 +298,9 @@
         <div class="row">
           <button class="btn" id="minusBtn" type="button" aria-label="Уменьшить стоимость часа">−</button>
           <div class="rateWrap">
-			<input
-			  id="rate"
-			  class="input"
-			  type="text"
-			  inputmode="decimal"
-			  autocomplete="off"
-			  value="20"
-			/>
-			<span class="currency">€</span>
-		  </div>
+            <input id="rate" class="rateInput" type="text" inputmode="decimal" autocomplete="off" value="20" aria-label="Стоимость часа" />
+            <span class="currency">€</span>
+          </div>
           <button class="btn" id="plusBtn" type="button" aria-label="Увеличить стоимость часа">+</button>
         </div>
       </div>
@@ -320,13 +318,17 @@
 
         <div id="error" class="error"></div>
       </div>
-
     </section>
   </main>
+  <span id="measure" class="measure"></span>
 
   <script>
     const startInput = document.getElementById('start');
     const endInput = document.getElementById('end');
+    const startGhost = document.getElementById('startGhost');
+    const endGhost = document.getElementById('endGhost');
+    const startClear = document.getElementById('startClear');
+    const endClear = document.getElementById('endClear');
     const rateInput = document.getElementById('rate');
     const durationText = document.getElementById('durationText');
     const amountText = document.getElementById('amountText');
@@ -334,41 +336,63 @@
     const liveTag = document.getElementById('liveTag');
     const minusBtn = document.getElementById('minusBtn');
     const plusBtn = document.getElementById('plusBtn');
+    const measure = document.getElementById('measure');
 
     function nowHHMM() {
       const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      return `${hh}:${mm}`;
+      return String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     }
 
-    function normalizeTimeInput(value) {
-      const digits = value.replace(/\D/g, '').slice(0, 4);
+    function digitsFromValue(value) {
+      return String(value || '').replace(/\D/g, '').slice(0, 4);
+    }
 
+    function normalizeDigitsSequential(digits) {
+      digits = digitsFromValue(digits);
+      if (!digits) return '';
+      if (digits.length === 1 && digits[0] >= '3') return '0' + digits[0];
+      if (digits.length >= 2 && digits[0] === '0' && digits[1] >= '3') {
+        return ('0' + digits[1] + digits.slice(2)).slice(0, 4);
+      }
+      if (digits[0] >= '3') return ('0' + digits).slice(0, 4);
+      return digits;
+    }
+
+    function formatSequentialFromDigits(digits) {
+      digits = normalizeDigitsSequential(digits);
+      if (!digits) return '';
       if (digits.length <= 2) return digits;
       return digits.slice(0, 2) + ':' + digits.slice(2);
     }
 
-    function parseTime(value) {
-      const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
-      if (!match) return null;
+    function finalizeDisplay(value) {
+      const digits = normalizeDigitsSequential(digitsFromValue(value));
+      if (!digits) return '';
+      const padded = (digits + '0000').slice(0, 4);
+      return padded.slice(0, 2) + ':' + padded.slice(2, 4);
+    }
 
+    function ghostSuffix(value) {
+      const current = formatSequentialFromDigits(value);
+      if (!current) return '00:00';
+      if (current.length >= 5) return '';
+      return '00:00'.slice(current.length);
+    }
+
+    function parseTime(value) {
+      const match = /^(\d{2}):(\d{2})$/.exec(value.trim());
+      if (!match) return null;
       const hh = Number(match[1]);
       const mm = Number(match[2]);
-
       if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
-
       return hh * 60 + mm;
     }
 
     function formatDuration(totalMinutes) {
       const h = Math.floor(totalMinutes / 60);
       const m = totalMinutes % 60;
-
       const hWord = h === 1 ? 'час' : (h >= 2 && h <= 4 ? 'часа' : 'час');
-      const mWord = (m % 10 === 1 && m % 100 !== 11) ? 'мин' : 'мин';
-
-      return `${h} ${hWord} ${m} ${mWord}`;
+      return `${h} ${hWord} ${m} мин`;
     }
 
     function formatMoney(value) {
@@ -383,21 +407,40 @@
       return Number.isFinite(num) && num >= 0 ? num : null;
     }
 
-    function updateEndPlaceholder() {
-      if (!endInput.value.trim()) {
-        endInput.placeholder = nowHHMM();
+    function updateGhostPosition(input, ghostEl) {
+      measure.style.font = getComputedStyle(input).font;
+      measure.style.letterSpacing = getComputedStyle(input).letterSpacing;
+      measure.textContent = input.value || '';
+      ghostEl.style.left = (16 + measure.getBoundingClientRect().width) + 'px';
+    }
+
+    function renderTimeField(input, ghostEl, clearBtn, allowLiveNow = false) {
+      const hasValue = !!input.value;
+      clearBtn.classList.toggle('visible', hasValue);
+
+      if (allowLiveNow && !hasValue) {
+        input.placeholder = nowHHMM();
+        ghostEl.textContent = '';
+        liveTag.style.display = 'flex';
+        return;
       }
+
+      input.placeholder = '';
+      if (allowLiveNow) liveTag.style.display = 'none';
+
+      ghostEl.textContent = ghostSuffix(input.value);
+      updateGhostPosition(input, ghostEl);
     }
 
     function recalc() {
       errorText.textContent = '';
-      updateEndPlaceholder();
 
-      const startValue = startInput.value.trim();
-      const endValue = endInput.value.trim();
+      renderTimeField(startInput, startGhost, startClear, false);
+      renderTimeField(endInput, endGhost, endClear, true);
+
+      const startValue = startInput.value ? finalizeDisplay(startInput.value) : '';
+      const endValue = endInput.value ? finalizeDisplay(endInput.value) : nowHHMM();
       const rateValue = parseRate(rateInput.value);
-
-      liveTag.style.display = endValue ? 'none' : 'flex';
 
       if (!startValue) {
         durationText.textContent = '—';
@@ -409,17 +452,15 @@
       if (startMinutes === null) {
         durationText.textContent = '—';
         amountText.textContent = '—';
-        errorText.textContent = 'Проверьте время начала. Нужен формат ЧЧ:ММ.';
+        errorText.textContent = 'Проверьте время начала.';
         return;
       }
 
-      const effectiveEnd = endValue || nowHHMM();
-      const endMinutes = parseTime(effectiveEnd);
-
+      const endMinutes = parseTime(endValue);
       if (endMinutes === null) {
         durationText.textContent = '—';
         amountText.textContent = '—';
-        errorText.textContent = 'Проверьте время окончания. Нужен формат ЧЧ:ММ.';
+        errorText.textContent = 'Проверьте время окончания.';
         return;
       }
 
@@ -433,35 +474,92 @@
       let diff = endMinutes - startMinutes;
       if (diff < 0) diff += 24 * 60;
 
-      const amount = (diff / 60) * rateValue;
-
       durationText.textContent = formatDuration(diff);
-      amountText.textContent = formatMoney(amount);
+      amountText.textContent = formatMoney((diff / 60) * rateValue);
     }
 
-    function attachTimeFormatter(input) {
-      input.addEventListener('input', () => {
-        const normalized = normalizeTimeInput(input.value);
-        if (input.value !== normalized) input.value = normalized;
+    function normalizeWholeField(input) {
+      const final = finalizeDisplay(input.value);
+      input.value = final;
+      recalc();
+    }
+
+    function appendDigit(input, digit) {
+      const currentDigits = digitsFromValue(input.value);
+      const next = normalizeDigitsSequential((currentDigits + digit).slice(0, 4));
+      input.value = formatSequentialFromDigits(next);
+      recalc();
+    }
+
+    function removeLast(input) {
+      const currentDigits = digitsFromValue(input.value);
+      const next = currentDigits.slice(0, -1);
+      input.value = formatSequentialFromDigits(next);
+      recalc();
+    }
+
+    function attachTimeField(input, ghostEl, clearBtn, nextInput = null, allowLiveNow = false) {
+      input.addEventListener('beforeinput', (event) => {
+        const type = event.inputType || '';
+        const data = (event.data || '').replace(/\D/g, '');
+
+        if (type === 'insertText' && data) {
+          event.preventDefault();
+          appendDigit(input, data[0]);
+          return;
+        }
+
+        if (type === 'deleteContentBackward' || type === 'deleteContentForward') {
+          event.preventDefault();
+          removeLast(input);
+          return;
+        }
+      });
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          normalizeWholeField(input);
+          if (nextInput) nextInput.focus();
+          else input.blur();
+          return;
+        }
+
+        if (event.key === 'Backspace') {
+          event.preventDefault();
+          removeLast(input);
+          return;
+        }
+
+        if (/^\d$/.test(event.key)) {
+          event.preventDefault();
+          appendDigit(input, event.key);
+        }
+      });
+
+      input.addEventListener('paste', (event) => {
+        event.preventDefault();
+        const pasted = (event.clipboardData || window.clipboardData).getData('text');
+        input.value = formatSequentialFromDigits(normalizeDigitsSequential(digitsFromValue(pasted)));
         recalc();
       });
 
       input.addEventListener('blur', () => {
-        const value = input.value.trim();
-        if (!value) {
-          recalc();
-          return;
-        }
-        const parts = value.split(':');
-        if (parts.length === 2 && parts[0].length === 1) {
-          input.value = '0' + parts[0] + ':' + parts[1];
-        }
+        if (input.value) normalizeWholeField(input);
+        else recalc();
+      });
+
+      input.addEventListener('focus', () => recalc());
+
+      clearBtn.addEventListener('click', () => {
+        input.value = '';
         recalc();
+        input.focus();
       });
     }
 
-    attachTimeFormatter(startInput);
-    attachTimeFormatter(endInput);
+    attachTimeField(startInput, startGhost, startClear, endInput, false);
+    attachTimeField(endInput, endGhost, endClear, null, true);
 
     rateInput.addEventListener('input', () => {
       rateInput.value = rateInput.value.replace(',', '.').replace(/[^\d.]/g, '');
@@ -483,14 +581,10 @@
     });
 
     setInterval(() => {
-      if (!endInput.value.trim()) {
-        recalc();
-      } else {
-        updateEndPlaceholder();
-      }
+      if (!endInput.value) recalc();
     }, 1000);
 
-    updateEndPlaceholder();
+    window.addEventListener('resize', recalc);
     recalc();
   </script>
 </body>
